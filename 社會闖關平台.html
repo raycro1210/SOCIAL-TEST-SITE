@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>社會科大闖關教學平台 v8</title>
+    <style>
+        :root {
+            /* 平台色系 */
+            --brand-primary: #2b9348;
+            --brand-secondary: #ffb703;
+            --brand-accent: #e76f51;
+            --bg-color: #f1faee;
+            --text-main: #1d3557;
+
+            /* 遊戲內變數 (可調整) */
+            --q-font-size: 5.5rem;
+            --opt-font-size: 2.8rem;
+            --timer-font-size: 2.8rem;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* 頁面切換 */
+        .page-view {
+            display: none;
+            height: 100%;
+            width: 100%;
+            flex-direction: column;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: white;
+        }
+        .page-view.active { display: flex; }
+
+        /* ==================== 彈跳視窗 (Modal) 系統 ==================== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.2s;
+        }
+        .modal-box {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            width: 85%;
+            max-width: 450px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border: 5px solid var(--brand-primary);
+            transform: scale(0.9);
+            animation: popIn 0.3s forwards;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { to { transform: scale(1); } }
+
+        .modal-title { font-size: 2.5rem; color: var(--text-main); margin-bottom: 25px; font-weight: bold; line-height: 1.4; }
+        .modal-btns { display: flex; justify-content: center; gap: 20px; }
+        
+        /* ==================== 1. 首頁 ==================== */
+        #page-home {
+            background: linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)),
+                        url('https://images.unsplash.com/photo-1509062522246-3755977927d7?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80');
+            background-size: cover;
+            background-position: center;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .home-title {
+            font-size: 6rem;
+            color: var(--brand-primary);
+            margin: 0;
+            text-shadow: 3px 3px 0px white;
+            font-weight: 900;
+        }
+
+        .home-subtitle {
+            font-size: 3rem;
+            color: #1d3557;
+            margin-top: 10px;
+            font-weight: bold;
+            background: rgba(255,255,255,0.8);
+            padding: 5px 20px;
+            border-radius: 20px;
+        }
+
+        .level-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 60vh;
+            overflow-y: auto;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .level-card {
+            background: white;
+            border: 4px solid var(--brand-primary);
+            width: 300px;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 8px 0 rgba(43, 147, 72, 0.2);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+        .level-card:hover { transform: translateY(-5px); box-shadow: 0 12px 0 rgba(43, 147, 72, 0.2); background: #f0fff4; }
+        .level-card:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(43, 147, 72, 0.2); }
+        
+        .level-name { font-size: 2.5rem; font-weight: bold; color: var(--text-main); margin-bottom: 10px; line-height: 1.2; }
+        .level-info { font-size: 1.5rem; color: #666; }
+        .level-tag { 
+            position: absolute; top: 0; right: 0; 
+            background: var(--brand-secondary); color: white; 
+            padding: 5px 15px; font-weight: bold; font-size: 1.2rem;
+            border-bottom-left-radius: 10px;
+        }
+
+        .admin-toggle-btn {
+            position: absolute; top: 20px; right: 20px;
+            background-color: #333; color: white; border: none;
+            padding: 10px 25px; border-radius: 30px; font-size: 1.5rem;
+            cursor: pointer; opacity: 0.6; transition: opacity 0.3s;
+            z-index: 100;
+        }
+        .admin-toggle-btn:hover { opacity: 1; }
+
+        /* ==================== 2. 後台管理 ==================== */
+        #page-admin { background-color: #f8f9fa; padding: 20px; overflow-y: auto; }
+        .admin-container { max-width: 1000px; margin: 0 auto; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+        
+        .section-box { border: 2px solid #eee; padding: 25px; border-radius: 15px; margin-bottom: 30px; background: #fff; }
+        .section-title { font-size: 2.2rem; color: var(--brand-primary); margin: 0 0 20px 0; border-left: 8px solid var(--brand-secondary); padding-left: 15px; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 1.6rem; font-weight: bold; margin-bottom: 8px; color: #444; }
+        .form-input { width: 100%; padding: 12px; font-size: 1.6rem; border: 2px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+        .form-textarea { width: 100%; height: 200px; padding: 12px; font-size: 1.4rem; border: 2px solid #ccc; border-radius: 8px; resize: vertical; font-family: monospace; }
+
+        .stepper { display: flex; align-items: center; gap: 15px; }
+        .stepper-btn { width: 50px; height: 50px; font-size: 2.5rem; background: var(--brand-primary); color: white; border: none; border-radius: 10px; cursor: pointer; }
+        .stepper-val { font-size: 2.5rem; font-weight: bold; width: 100px; text-align: center; }
+
+        .btn-action { background-color: var(--brand-primary); color: white; border: none; padding: 15px 30px; font-size: 1.8rem; border-radius: 10px; cursor: pointer; margin-right: 15px; font-weight: bold; box-shadow: 0 4px 0 #1b5e20; transition: transform 0.1s, box-shadow 0.1s; }
+        .btn-action:active { transform: translateY(4px); box-shadow: none; }
+        .btn-secondary { background-color: #6c757d; box-shadow: 0 4px 0 #495057; }
+        .btn-blue { background-color: #457b9d; box-shadow: 0 4px 0 #1d3557; }
+        .btn-danger { background-color: #d62828; box-shadow: 0 4px 0 #8a1c1c; }
+
+        /* 管理列表樣式 */
+        .manage-list { list-style: none; padding: 0; }
+        .manage-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: #f8f9fa; border: 1px solid #ddd; padding: 15px; 
+            margin-bottom: 10px; border-radius: 8px; 
+        }
+        .manage-info { font-size: 1.6rem; font-weight: bold; color: #333; }
+        .manage-sub { font-size: 1.2rem; color: #666; margin-left: 10px; font-weight: normal; }
+
+        /* ==================== 3. 遊戲畫面 ==================== */
+        #page-game { flex-direction: column; padding: 10px 20px; box-sizing: border-box; }
+        
+        .game-header-row { display: flex; justify-content: space-between; align-items: center; height: 50px; width: 100%; flex: 0 0 auto; margin-bottom: 5px;}
+        .game-q-counter { font-size: 2rem; font-weight: bold; color: var(--brand-primary); }
+        
+        .timer-box { display: flex; align-items: center; gap: 10px; background: #fff0f0; border: 3px solid var(--brand-accent); border-radius: 8px; padding: 0 15px; height: 100%; }
+        .timer-text { font-size: 2.8rem; font-weight: 900; color: var(--brand-accent); font-family: monospace; min-width: 60px; }
+        
+        .progress-container { width: 100%; height: 10px; background: #e9ecef; border-radius: 5px; overflow: hidden; margin: 5px 0; flex: 0 0 auto; }
+        .progress-bar { height: 100%; width: 100%; background: var(--brand-secondary); transition: width 1s linear; }
+        .progress-bar.danger { background: var(--brand-accent); }
+
+        #game-area { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; overflow-y: auto; width: 100%; justify-content: flex-start; }
+        
+        .question-text { font-size: var(--q-font-size); font-weight: bold; text-align: left; width: 100%; margin-bottom: 20px; line-height: 1.3; color: black; }
+        
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; }
+        .option-btn { background: #f8f9fa; border: 4px solid #dee2e6; color: #333; padding: 15px; border-radius: 12px; font-size: var(--opt-font-size); text-align: left; font-weight: bold; transition: all 0.2s; cursor: pointer; }
+        /* 選項按鈕互動效果 */
+        .option-btn:hover { background-color: #e9ecef; border-color: var(--brand-primary); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .option-btn:active { transform: scale(0.98); box-shadow: none; }
+        .option-btn.selected { background: var(--brand-primary); color: white; border-color: var(--brand-primary); transform: scale(1.02); box-shadow: 0 0 10px rgba(43, 147, 72, 0.5); }
+
+        .tf-container { display: flex; gap: 60px; margin: 20px 0; }
+        .tf-btn { font-size: 8rem; width: 180px; height: 180px; border-radius: 50%; background: white; border: 8px solid #ccc; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s; }
+        /* 是非題按鈕互動效果 */
+        .tf-btn:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(0,0,0,0.15); }
+        .tf-btn.circle { color: var(--brand-primary); border-color: var(--brand-primary); }
+        .tf-btn.cross { color: var(--brand-accent); border-color: var(--brand-accent); }
+        .tf-btn:active { transform: scale(0.95); }
+        /* 是非題按鈕選中樣式 */
+        .tf-btn.circle.selected { background-color: var(--brand-primary); color: white; border-color: var(--brand-primary); box-shadow: 0 0 20px rgba(43, 147, 72, 0.4); }
+        .tf-btn.cross.selected { background-color: var(--brand-accent); color: white; border-color: var(--brand-accent); box-shadow: 0 0 20px rgba(231, 111, 81, 0.4); }
+
+        .hint-box { width: 100%; margin-top: 15px; padding: 20px; background: #fff3cd; border: 4px solid #ffeeba; border-radius: 10px; font-size: 2.5rem; color: #856404; font-weight: bold; display: none; text-align: left; }
+
+        .controls-area { display: flex; justify-content: space-between; width: 100%; margin-top: 10px; padding-top: 10px; border-top: 2px solid #eee; flex: 0 0 auto; }
+        .game-nav-btn { background: var(--brand-primary); color: white; border: none; padding: 10px 30px; font-size: 2rem; border-radius: 10px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        /* 導航按鈕互動效果 */
+        .game-nav-btn:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); filter: brightness(1.1); }
+        .game-nav-btn:active { transform: translateY(0); box-shadow: none; }
+        /* 禁用狀態樣式 */
+        .game-nav-btn:disabled { background-color: #ccc; border-color: #ccc; color: #666; cursor: not-allowed; transform: none; box-shadow: none; filter: none; }
+        .game-nav-btn.outline { background: white; color: var(--brand-primary); border: 3px solid var(--brand-primary); }
+        .game-nav-btn.outline:hover { background: #f0fff4; }
+        .game-nav-btn.hint { background: var(--brand-secondary); color: #333; }
+
+        /* 複習列表 */
+        .review-item { border-bottom: 1px solid #ccc; padding: 15px 0; text-align: left; }
+        .review-q { font-size: 2rem; font-weight: bold; }
+        .review-a { font-size: 1.8rem; color: var(--brand-primary); margin-top: 5px; }
+        .review-e { font-size: 1.6rem; color: #666; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<!-- 自製模態視窗 (解決 confirm/alert 無效問題) -->
+<div id="custom-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-title" id="modal-msg">提示訊息</div>
+        <div class="modal-btns" id="modal-btns">
+            <!-- 按鈕由 JS 動態生成 -->
+        </div>
+    </div>
+</div>
+
+<!-- 1. 首頁 -->
+<div id="page-home" class="page-view active">
+    <button class="admin-toggle-btn" onclick="switchView('page-admin')">⚙️ 教師後台</button>
+    
+    <div style="margin-top: 5vh;">
+        <h1 class="home-title" id="display-site-title">同榮國小社會科大闖關</h1>
+        <div class="home-subtitle" id="display-site-desc">快樂學習，認識家鄉與節慶！</div>
+    </div>
+
+    <div style="margin-top: 30px;">
+        <h2 style="color: var(--brand-primary); font-size: 2.5rem; background: rgba(255,255,255,0.9); display: inline-block; padding: 5px 20px; border-radius: 15px;">📚 請選擇挑戰關卡</h2>
+        <div class="level-grid" id="level-list">
+            <!-- 關卡會動態插入這裡 -->
+        </div>
+    </div>
+</div>
+
+<!-- 2. 後台管理 -->
+<div id="page-admin" class="page-view">
+    <div class="admin-container">
+        <div class="admin-header" style="display:flex; justify-content:space-between; margin-bottom:20px;">
+            <h1 style="margin:0; font-size: 3rem; color: var(--brand-primary);">🛠️ 後台管理系統</h1>
+            <button class="btn-action btn-secondary" onclick="switchView('page-home')">🏠 回首頁</button>
+        </div>
+
+        <!-- 區塊1: 網站設定 -->
+        <div class="section-box">
+            <h2 class="section-title">📝 網站資訊設定</h2>
+            <div class="form-group">
+                <label class="form-label">網站標題</label>
+                <input type="text" class="form-input" id="conf-title" oninput="updateConfig('title', this.value)">
+            </div>
+            <div class="form-group">
+                <label class="form-label">副標題 / 說明</label>
+                <input type="text" class="form-input" id="conf-desc" oninput="updateConfig('desc', this.value)">
+            </div>
+        </div>
+
+        <!-- 區塊2: 遊戲參數 -->
+        <div class="section-box">
+            <h2 class="section-title">⚙️ 遊戲參數調整</h2>
+            <div class="form-group">
+                <label class="form-label">題目字體大小 (目前: <span id="lbl-qSize">5.5</span> rem)</label>
+                <div class="stepper">
+                    <button class="stepper-btn" onclick="adjustVal('qSize', -0.1)">-</button>
+                    <div style="flex:1; background:#eee; height:10px; border-radius:5px;"><div id="bar-qSize" style="width:50%; height:100%; background:var(--brand-primary);"></div></div>
+                    <button class="stepper-btn" onclick="adjustVal('qSize', 0.1)">+</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">每題倒數時間 (目前: <span id="lbl-timer">15</span> 秒)</label>
+                <div class="stepper">
+                    <button class="stepper-btn" onclick="adjustVal('timer', -1)">-</button>
+                    <span class="stepper-val" id="disp-timer">15</span>
+                    <button class="stepper-btn" onclick="adjustVal('timer', 1)">+</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 區塊3: 關卡管理 -->
+        <div class="section-box">
+            <h2 class="section-title">📂 關卡管理</h2>
+            <p style="font-size: 1.4rem; color: #555;">您可以在此刪除舊的關卡，或查看目前的關卡列表。</p>
+            <ul class="manage-list" id="manage-level-list">
+                <!-- 列表動態生成 -->
+            </ul>
+        </div>
+
+        <!-- 區塊4: 題庫上傳 (增強版) -->
+        <div class="section-box">
+            <h2 class="section-title">➕ 新增關卡 (題庫解析增強版)</h2>
+            <p style="font-size: 1.4rem; color: #555; line-height: 1.5;">
+                <strong>步驟：</strong><br>
+                1. 開啟題庫 PDF，全選並複製文字 (Ctrl+C)。<br>
+                2. 貼入下方，點擊生成。<br>
+                <span style="color:#d00000;">* 系統會自動修正黏在一起的選項和誤判的題型。</span>
+            </p>
+            <div class="form-group">
+                <label class="form-label">新關卡名稱</label>
+                <input type="text" class="form-input" id="new-level-name" placeholder="例如：期末考複習_版本A">
+            </div>
+            <div class="form-group">
+                <label class="form-label">貼上題庫文字</label>
+                <textarea class="form-textarea" id="raw-text-input" placeholder="請在此貼上 PDF 的文字內容..."></textarea>
+            </div>
+            <button class="btn-action" onclick="parseAndCreateLevel()">✨ 生成並儲存新關卡</button>
+        </div>
+
+        <!-- 區塊5: 系統存讀檔 -->
+        <div class="section-box">
+            <h2 class="section-title">💾 系統備份與還原</h2>
+            <p style="font-size: 1.4rem; color: #555;">
+                <strong>說明：</strong> 此功能會將「所有關卡」與「所有設定」打包成一個檔案。<br>
+                請定期點擊「匯出」並存到您的雲端硬碟。下次上課前，點擊「匯入」即可還原所有內容。
+            </p>
+            <div style="display: flex; gap: 20px;">
+                <button class="btn-action btn-blue" onclick="exportData()">⬇️ 匯出系統備份檔 (Save All)</button>
+                <button class="btn-action btn-secondary" onclick="document.getElementById('file-upload').click()">⬆️ 匯入系統備份檔 (Load All)</button>
+                <input type="file" id="file-upload" style="display: none;" accept=".json" onchange="importData(this)">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. 遊戲畫面 -->
+<div id="page-game" class="page-view">
+    <div class="game-header-row">
+        <div class="game-q-counter" id="game-counter">第 1 / 10 題</div>
+        <div class="timer-box" id="timer-box-el">
+            <span style="font-size: 2.5rem;">⏱️</span>
+            <span class="timer-text" id="game-timer">15</span>
+        </div>
+    </div>
+    
+    <div class="progress-container">
+        <div class="progress-bar" id="game-progress"></div>
+    </div>
+
+    <div id="game-area">
+        <div class="question-text" id="game-q-text">題目載入中...</div>
+        
+        <div class="tf-container" id="game-tf-area" style="display:none;">
+            <button class="tf-btn circle" onclick="handleAnswer('O')">○</button>
+            <button class="tf-btn cross" onclick="handleAnswer('X')">╳</button>
+        </div>
+
+        <div class="options-grid" id="game-mc-area" style="display:none;">
+            <button class="option-btn" id="opt1" onclick="handleAnswer(1)">選項1</button>
+            <button class="option-btn" id="opt2" onclick="handleAnswer(2)">選項2</button>
+            <button class="option-btn" id="opt3" onclick="handleAnswer(3)">選項3</button>
+            <button class="option-btn" id="opt4" onclick="handleAnswer(4)">選項4</button>
+        </div>
+
+        <div class="hint-box" id="game-hint"></div>
+    </div>
+
+    <div class="controls-area">
+        <button class="game-nav-btn outline" onclick="tryQuitGame()">🚪 離開</button>
+        <button class="game-nav-btn" onclick="prevQ()" id="btn-prev">⬅ 上一題</button>
+        <button class="game-nav-btn hint" onclick="toggleGameHint()">💡 提示</button>
+        <button class="game-nav-btn" onclick="nextQ()" id="btn-next">下一題 ➡</button>
+    </div>
+</div>
+
+<!-- 4. 結算畫面 -->
+<div id="page-result" class="page-view" style="align-items: center; justify-content: center; overflow-y: auto;">
+    <h1 style="font-size: 5rem; color: var(--brand-primary); margin: 20px;">🎉 闖關完成！</h1>
+    <p id="result-encourage" style="font-size: 2.5rem; color: #1d3557; margin-bottom: 20px;">太棒了！你已經完成了所有挑戰！</p>
+    <div style="display: flex; gap: 20px;">
+        <button class="btn-action" onclick="showReviewList()">📖看題目解析</button>
+        <button class="btn-action btn-secondary" onclick="switchView('page-home')">🏠 回首頁</button>
+    </div>
+    <div id="review-container" style="width: 90%; max-width: 800px; margin-top: 20px; display: none;">
+        <!-- 解析列表 -->
+    </div>
+</div>
+
+<script>
+    // --- 核心資料結構 ---
+    let appData = {
+        title: "同榮國小社會科大闖關",
+        desc: "快樂學習，認識家鄉與節慶！",
+        config: {
+            qSize: 5.5,
+            optSize: 2.8,
+            timer: 15
+        },
+        levels: [
+            // 預設範例
+            {
+                id: "default_01",
+                name: "範例關卡：生活與節慶",
+                date: new Date().toLocaleDateString(),
+                questions: [
+                    {type: 'TF', q: '範例：端午節要吃月餅嗎？', a: 'X', hint: '端午節吃粽子，中秋節才吃月餅。'},
+                    {type: 'MC', q: '範例：哪一個節日會放水燈？', opts:['春節','端午節','中元節','中秋節'], a: 3, hint: '中元節普渡會放水燈。'}
+                ]
+            }
+        ]
+    };
+
+    // --- 變數 ---
+    let currentLevel = null;
+    let currentQIndex = 0;
+    let timerInterval = null;
+    let timeLeft = 0;
+    let audioCtx = null;
+
+    // --- 初始化 ---
+    window.onload = function() {
+        applyConfig();
+        renderHome();
+    };
+
+    // --- 彈跳視窗 (Modal) 管理器 ---
+    function showModal(msg, onYes, onNo) {
+        const modal = document.getElementById('custom-modal');
+        const msgEl = document.getElementById('modal-msg');
+        const btnContainer = document.getElementById('modal-btns');
+        
+        msgEl.innerText = msg;
+        btnContainer.innerHTML = ''; // 清空按鈕
+
+        if (onYes) {
+            // 確認模式
+            const btnYes = document.createElement('button');
+            btnYes.className = 'btn-action btn-danger';
+            btnYes.innerText = '確定';
+            btnYes.onclick = () => { modal.style.display = 'none'; onYes(); };
+            
+            const btnNo = document.createElement('button');
+            btnNo.className = 'btn-action btn-secondary';
+            btnNo.innerText = '取消';
+            btnNo.onclick = () => { modal.style.display = 'none'; if(onNo) onNo(); };
+            
+            btnContainer.appendChild(btnNo);
+            btnContainer.appendChild(btnYes);
+        } else {
+            // 純提示模式 (Alert)
+            const btnOk = document.createElement('button');
+            btnOk.className = 'btn-action';
+            btnOk.innerText = '我知道了';
+            btnOk.onclick = () => { modal.style.display = 'none'; };
+            btnContainer.appendChild(btnOk);
+        }
+        
+        modal.style.display = 'flex';
+    }
+
+    function showAlert(msg) {
+        showModal(msg, null, null);
+    }
+
+    // --- 後台邏輯 ---
+    function updateConfig(key, val) {
+        appData[key] = val;
+        renderHome();
+    }
+
+    function adjustVal(key, delta) {
+        if(key === 'qSize') {
+            appData.config.qSize = parseFloat((appData.config.qSize + delta).toFixed(1));
+            document.getElementById('lbl-qSize').innerText = appData.config.qSize;
+        } else if (key === 'timer') {
+            appData.config.timer = Math.max(5, appData.config.timer + delta);
+            document.getElementById('disp-timer').innerText = appData.config.timer;
+            document.getElementById('lbl-timer').innerText = appData.config.timer;
+        }
+        applyConfig();
+    }
+
+    function applyConfig() {
+        document.documentElement.style.setProperty('--q-font-size', appData.config.qSize + 'rem');
+        document.documentElement.style.setProperty('--opt-font-size', appData.config.optSize + 'rem');
+        document.getElementById('conf-title').value = appData.title;
+        document.getElementById('conf-desc').value = appData.desc;
+        document.getElementById('lbl-qSize').innerText = appData.config.qSize;
+        document.getElementById('disp-timer').innerText = appData.config.timer;
+        document.getElementById('lbl-timer').innerText = appData.config.timer;
+    }
+
+    function renderHome() {
+        document.getElementById('display-site-title').innerText = appData.title;
+        document.getElementById('display-site-desc').innerText = appData.desc;
+        const list = document.getElementById('level-list');
+        list.innerHTML = '';
+        appData.levels.forEach((lvl, idx) => {
+            const card = document.createElement('div');
+            card.className = 'level-card';
+            card.innerHTML = `<div class="level-tag">題目數：${lvl.questions.length}</div><div class="level-name">${lvl.name}</div><div class="level-info">📅 ${lvl.date}</div>`;
+            card.onclick = () => startGame(idx);
+            list.appendChild(card);
+        });
+    }
+
+    function renderLevelManager() {
+        const list = document.getElementById('manage-level-list');
+        list.innerHTML = '';
+        appData.levels.forEach((lvl, idx) => {
+            const li = document.createElement('li');
+            li.className = 'manage-item';
+            li.innerHTML = `<div><span class="manage-info">${lvl.name}</span><span class="manage-sub">題目數: ${lvl.questions.length} | 日期: ${lvl.date}</span></div><button class="btn-action btn-danger" style="font-size:1.4rem; padding: 8px 15px;" onclick="deleteLevel(${idx})">刪除</button>`;
+            list.appendChild(li);
+        });
+    }
+
+    function deleteLevel(index) {
+        const levelName = appData.levels[index].name;
+        showModal(`確定要刪除「${levelName}」嗎？刪除後無法復原。`, () => {
+            appData.levels.splice(index, 1);
+            renderLevelManager();
+            renderHome();
+        });
+    }
+
+    function switchView(id) {
+        document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if(id === 'page-home') renderHome();
+        if(id === 'page-admin') renderLevelManager();
+    }
+
+    // --- 題庫解析器 (增強版 v6) ---
+    function parseAndCreateLevel() {
+        const raw = document.getElementById('raw-text-input').value;
+        const name = document.getElementById('new-level-name').value || "未命名關卡";
+        if(!raw.trim()) { showAlert("請先貼上文字！"); return; }
+
+        const questions = [];
+        const lines = raw.split('\n');
+        let tempQ = null;
+
+        // 偵測題目的開頭
+        const regexQStart = /^(\d+)[.、\s)]/;
+        const regexAns = /(?:答案|Ans)[:：\s]*([^\s。]+)/i;
+        
+        lines.forEach(line => {
+            line = line.trim();
+            if(!line) return;
+
+            let matchQ = line.match(regexQStart);
+            if(matchQ) {
+                // 存上一題
+                if(tempQ) questions.push(tempQ);
+                
+                // 開新題目，並檢查這行是否已經包含選項 (同路殺手修正)
+                let qContent = line.replace(regexQStart, '').trim();
+                let initialOpts = [];
+                
+                // 檢查是否含有 ① 或 (1)
+                if(qContent.includes('①')) {
+                    let parts = qContent.split(/[①②③④]/);
+                    qContent = parts[0].trim(); // 題目本體
+                    initialOpts = parts.slice(1).map(s => s.trim()); // 選項們
+                } else if(qContent.includes('(1)')) {
+                    let parts = qContent.split(/\(\d\)/);
+                    qContent = parts[0].trim(); 
+                    initialOpts = parts.slice(1).map(s => s.trim());
+                }
+
+                tempQ = { 
+                    q: qContent, 
+                    type: "MC", 
+                    opts: initialOpts, // 如果第一行就抓到選項，直接填入
+                    a: "", 
+                    hint: "" 
+                };
+            } else if (tempQ) {
+                // 偵測答案
+                let matchAns = line.match(regexAns);
+                if(matchAns) {
+                    let ansRaw = matchAns[1].trim();
+                    if (['○', 'O', 'o', 'T', 'True'].includes(ansRaw)) {
+                        tempQ.a = 'O'; tempQ.type = 'TF';
+                    } else if (['X', 'x', '╳', 'F', 'False'].includes(ansRaw)) {
+                        tempQ.a = 'X'; tempQ.type = 'TF';
+                    } else {
+                        const map = {'①':1, '②':2, '③':3, '④':4, '❶':1, '❷':2, '❸':3, '❹':4, '(1)':1, '(2)':2, '(3)':3, '(4)':4};
+                        tempQ.a = map[ansRaw] || ansRaw.replace(/[\(\)]/g, ''); 
+                        tempQ.type = 'MC';
+                    }
+                }
+                
+                // 偵測解析
+                if(line.includes("解析") || line.includes("詳解")) {
+                    let parts = line.split(/[:：]/);
+                    if(parts.length > 1) tempQ.hint = parts.slice(1).join(":").trim();
+                    else tempQ.hint = line;
+                }
+
+                // 偵測選項 (補抓後面幾行的)
+                // 判斷方式：如果不是答案/解析/新題目，且含有符號，或者是短文字
+                else if (!line.match(regexAns) && !line.includes("解析") && !line.match(regexQStart)) {
+                    // 切割符號 ①②③④
+                    if(line.includes('①')) {
+                        let parts = line.split(/[①②③④]/).filter(s => s.trim());
+                        if(parts.length > 0) tempQ.opts.push(...parts);
+                    } else if (line.includes('(1)')) {
+                        let parts = line.split(/\(\d\)/).filter(s => s.trim());
+                        if(parts.length > 0) tempQ.opts.push(...parts);
+                    } else if (line.match(/^[A-D1-4][.、)]/)) {
+                        // 1. 蘋果 這種格式
+                        tempQ.opts.push(line.replace(/^[A-D1-4][.、)]/, '').trim());
+                    } else if (tempQ.type === 'MC' && tempQ.opts.length < 4) {
+                        // 可能是換行的題目，但如果選項還沒滿，也有可能是純文字選項
+                        // 這裡比較難判斷，先假設是題目換行，除非很短
+                        if(line.length < 15 && tempQ.opts.length > 0) {
+                             tempQ.opts.push(line);
+                        } else {
+                             tempQ.q += "\n" + line;
+                        }
+                    }
+                }
+            }
+        });
+        if(tempQ) questions.push(tempQ);
+
+        // 後處理：防呆補齊
+        questions.forEach(q => {
+            if (q.type === 'MC') {
+                while (q.opts.length < 4) q.opts.push(" ");
+            }
+        });
+
+        if(questions.length === 0) {
+            showAlert("系統無法辨識貼上的格式，請確認是否有題號 (如 1. 題目)。");
+            return;
+        }
+
+        const newLevel = { id: 'lvl_' + Date.now(), name: name, date: new Date().toLocaleDateString(), questions: questions };
+        appData.levels.unshift(newLevel);
+        showAlert(`成功生成關卡！包含 ${questions.length} 題。`);
+        document.getElementById('raw-text-input').value = "";
+        renderLevelManager();
+        renderHome();
+    }
+
+    // --- 存讀檔 ---
+    function exportData() {
+        const dataStr = JSON.stringify(appData);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', '同榮國小社會科_全系統備份.json');
+        linkElement.click();
+    }
+
+    function importData(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const loaded = JSON.parse(e.target.result);
+                if(loaded.levels && loaded.config) {
+                    appData = loaded;
+                    applyConfig();
+                    renderHome();
+                    renderLevelManager();
+                    showAlert("系統還原成功！");
+                } else {
+                    showAlert("檔案格式錯誤！");
+                }
+            } catch(err) {
+                showAlert("無法讀取檔案");
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // --- 遊戲引擎 ---
+    function startGame(levelIndex) {
+        currentLevel = appData.levels[levelIndex];
+        currentQIndex = 0;
+        switchView('page-game');
+        loadQuestion();
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function loadQuestion() {
+        resetTimer();
+        const q = currentLevel.questions[currentQIndex];
+        document.getElementById('game-counter').innerText = `第 ${currentQIndex + 1} / ${currentLevel.questions.length} 題`;
+        document.getElementById('game-q-text').innerText = q.q;
+        document.getElementById('game-hint').style.display = 'none';
+        document.getElementById('game-hint').innerText = q.hint || "無提示";
+
+        if (q.type === 'TF') {
+            document.getElementById('game-tf-area').style.display = 'flex';
+            document.getElementById('game-mc-area').style.display = 'none';
+        } else {
+            document.getElementById('game-tf-area').style.display = 'none';
+            document.getElementById('game-mc-area').style.display = 'grid';
+            for(let i=0; i<4; i++) {
+                document.getElementById(`opt${i+1}`).innerText = q.opts[i] || "";
+            }
+        }
+        
+        // Reset selections
+        document.querySelectorAll('.option-btn, .tf-btn').forEach(b => b.classList.remove('selected'));
+        
+        // Handle Prev Button State
+        const prevBtn = document.getElementById('btn-prev');
+        if(prevBtn) prevBtn.disabled = (currentQIndex === 0);
+
+        // Update Next Button Text
+        const nextBtn = document.getElementById('btn-next');
+        if (currentQIndex === currentLevel.questions.length - 1) {
+            nextBtn.innerText = "測驗完成 🏁";
+        } else {
+            nextBtn.innerText = "下一題 ➡";
+        }
+
+        startTimer();
+    }
+
+    function handleAnswer(ans) {
+        if(document.getElementById('game-tf-area').style.display === 'flex') {
+             document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('selected'));
+             if(ans === 'O') document.querySelector('.tf-btn.circle').classList.add('selected');
+             else document.querySelector('.tf-btn.cross').classList.add('selected');
+        } else {
+            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById(`opt${ans}`).classList.add('selected');
+        }
+    }
+
+    function nextQ() {
+        if(currentQIndex < currentLevel.questions.length - 1) {
+            currentQIndex++;
+            loadQuestion();
+        } else {
+            endGame();
+        }
+    }
+
+    // New: Previous Question Function
+    function prevQ() {
+        if(currentQIndex > 0) {
+            currentQIndex--;
+            loadQuestion();
+        }
+    }
+
+    function toggleGameHint() {
+        const h = document.getElementById('game-hint');
+        h.style.display = h.style.display === 'none' ? 'block' : 'none';
+        if(h.style.display === 'block') document.getElementById('game-area').scrollTop = document.getElementById('game-area').scrollHeight;
+    }
+
+    function tryQuitGame() {
+        showModal("確定要離開測驗嗎？", () => {
+            clearInterval(timerInterval);
+            switchView('page-home');
+        });
+    }
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        timeLeft = appData.config.timer;
+        updateTimerUI();
+        document.getElementById('timer-box-el').classList.remove('timer-urgent-box');
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            updateTimerUI();
+            if(timeLeft <= 5) {
+                document.getElementById('timer-box-el').classList.add('timer-urgent-box');
+                playTick(true);
+            } else {
+                playTick(false);
+            }
+
+            if(timeLeft <= 0) {
+                clearInterval(timerInterval);
+                document.getElementById('game-hint').style.display = 'block';
+                // 時間到只顯示提示，不顯示解答
+                document.getElementById('game-hint').innerText = "⏰ 時間到！"; 
+                playTick(true);
+            }
+        }, 1000);
+    }
+
+    function updateTimerUI() {
+        document.getElementById('game-timer').innerText = timeLeft;
+        const pct = (timeLeft / appData.config.timer) * 100;
+        const bar = document.getElementById('game-progress');
+        bar.style.width = pct + '%';
+        if(timeLeft <= 5) bar.classList.add('danger'); else bar.classList.remove('danger');
+    }
+
+    function playTick(urgent) {
+        if(!audioCtx) return;
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = urgent ? 1200 : 800;
+        osc.type = urgent ? 'sawtooth' : 'square';
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function endGame() {
+        clearInterval(timerInterval);
+        switchView('page-result');
+        // 強制隱藏解析列表，確保按按鈕才出現
+        document.getElementById('review-container').style.display = 'none';
+        
+        const container = document.getElementById('review-container');
+        container.innerHTML = '';
+        currentLevel.questions.forEach((q, i) => {
+            const div = document.createElement('div');
+            div.className = 'review-item';
+            let ansStr = q.type === 'TF' ? (q.a === 'O' ? '○' : '╳') : `選項 ${q.a}`;
+            div.innerHTML = `<div class="review-q">${i+1}. ${q.q}</div><div class="review-a">✅ 答案：${ansStr}</div><div class="review-e">📝 解析：${q.hint}</div>`;
+            container.appendChild(div);
+        });
+    }
+    
+    function showReviewList() {
+        const c = document.getElementById('review-container');
+        const pageResult = document.getElementById('page-result');
+        
+        if (c.style.display === 'none') {
+            c.style.display = 'block';
+            // 展開列表時，強制改為靠上對齊，避免內容被切掉無法捲動
+            pageResult.style.justifyContent = 'flex-start';
+            pageResult.style.paddingTop = '40px';
+            pageResult.style.paddingBottom = '40px';
+            
+            // 自動捲動到列表頂部
+            setTimeout(() => {
+                c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        } else {
+            c.style.display = 'none';
+            // 收起時恢復美觀的置中對齊
+            pageResult.style.justifyContent = 'center';
+            pageResult.style.paddingTop = '0';
+            pageResult.style.paddingBottom = '0';
+        }
+    }
+
+</script>
+</body>
+</html>
